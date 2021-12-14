@@ -56,6 +56,7 @@ public class part2_huffman {
         }
 
         Node root = null;
+        pq.add(new Node("EOF", 1));
 
         while (pq.size() > 1) {
 
@@ -72,7 +73,8 @@ public class part2_huffman {
         }
 
         populatingMap(root, "");
-
+        // for (String s : map.keySet())
+        //     System.out.println(s + " : " + map.get(s));
         return map;
     }
 
