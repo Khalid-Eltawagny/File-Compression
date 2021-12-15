@@ -37,6 +37,36 @@ public class part2_huffman {
         return;
     }
 
+    public HashMap<String, String> RunHuffmanV2(HashMap<String, Integer> FREQ) {
+        for (String key : FREQ.keySet()) {
+            int freq = FREQ.get(key);
+            Node node = new Node(key, freq);
+            node.left = null;
+            node.right = null;
+            pq.add(node);
+        }
+
+        Node root = null;
+        pq.add(new Node("EOF", 1));
+
+        while (pq.size() > 1) {
+
+            Node n1 = pq.poll();
+            Node n2 = pq.poll();
+
+            Node toPush = new Node("-", n1.freq + n2.freq);
+            toPush.left = n1;
+            toPush.right = n2;
+
+            root = toPush;
+
+            pq.add(toPush);
+        }
+
+        populatingMap(root, "");
+        return map;
+    }
+
     public HashMap<String, String> RunHuffman(String bytes[]) {
         // calculating frequencies .
         for (String s : bytes) {
@@ -73,9 +103,12 @@ public class part2_huffman {
         }
 
         populatingMap(root, "");
-        // for (String s : map.keySet())
-        //     System.out.println(s + " : " + map.get(s));
+
         return map;
+    }
+
+    public HashMap<String, Integer> getFreq() {
+        return this.cnt;
     }
 
 }

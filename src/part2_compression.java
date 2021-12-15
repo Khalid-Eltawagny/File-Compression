@@ -1,14 +1,19 @@
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.util.Map;
 
 public class part2_compression {
+
     private final part2_huffman huffman = new part2_huffman();
     private HashMap<String, String> codeWord = new HashMap<>();
     private StringBuilder bitsToBeWritten = new StringBuilder("");
+    private HashMap<String, Integer> freq;
 
     public void compress(String filePath, int n) throws IOException {
         File file = new File(filePath);
@@ -34,6 +39,7 @@ public class part2_compression {
             NbytesAsString[i] = combinedBytes.toString();
         }
         codeWord = huffman.RunHuffman(NbytesAsString);
+        freq = huffman.getFreq();
         String EOF = codeWord.get("EOF");
         for (String s : NbytesAsString)
             bitsToBeWritten.append(codeWord.get(s));
@@ -47,13 +53,43 @@ public class part2_compression {
         }
         System.out.println("Original data size " + fileBytes.length + " bytes.");
         System.out.println("Compressed data size " + bytesToBeWritten.length + " bytes.");
-        System.out.println("Ratio : " + ((double) fileBytes.length / bytesToBeWritten.length));
-        OutputStream os = new FileOutputStream(filePath + ".hc");
+        System.out.println("Ratio : " + ((double) bytesToBeWritten.length / fileBytes.length));
+
+        HashMap<String, String> COPY = new HashMap<>();
+        for (String K : codeWord.keySet())
+            COPY.put(codeWord.get(K), K);
+
+        File ff = new File(filePath + ".hc");
+        BufferedWriter bf = new BufferedWriter(new FileWriter(ff));
+        for (Map.Entry<String, String> E : COPY.entrySet()) {
+            StringBuilder bytes__ = new StringBuilder("");
+            String bits = E.getValue();
+            if (bits == "EOF") {
+                bf.write("EOF" + ":" + E.getKey());
+                bf.append(" ");
+                continue;
+            }
+            for (int i = 0; i < bits.length(); i += 8) {
+                byte b = (byte) Integer.parseInt(bits.substring(i, i + 8), 2);
+                bytes__.append(Byte.toString(b));
+                if (i != bits.length() - 8)
+                    bytes__.append(",");
+            }
+            bf.write(bytes__.toString() + ":" + E.getKey());
+            bf.append(" ");
+        }
+        bf.newLine();
+        bf.close();
+        OutputStream os = new FileOutputStream(filePath + ".hc", true);
         os.write(bytesToBeWritten);
         os.close();
     }
 
     public HashMap<String, String> getMap() {
         return this.codeWord;
+    }
+
+    public HashMap<String, Integer> getFreq() {
+        return this.freq;
     }
 }
