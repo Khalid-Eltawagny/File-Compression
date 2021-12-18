@@ -5,21 +5,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+
 public class part2_decompression {
 
     private HashMap<String, String> map = new HashMap<>();
     private HashMap<String, String> reversedMap = new HashMap<>();
-
+    int l = 0, n = 0;
     private void handleLine(String Line) {
         String parts[] = Line.split(" ");
-        for (String part : parts) {
+        l = Integer.valueOf(parts[0].split("[:]")[1]);
+        n = Integer.valueOf(parts[1].split("[:]")[1]);
+        for (int i = 2; i < parts.length; i++) {
+            String part = parts[i];
             String bytesCode[] = part.split("[:]");
             String bytes[] = bytesCode[0].split("[,]");
             StringBuilder sb = new StringBuilder();
             for (String b : bytes) {
                 if (b.compareTo("EOF") == 0) {
-                    map.put("EOF", bytesCode[1]);
-                    continue;
+                    sb.append("EOF");
+                    break;
                 }
                 byte byte_ = Byte.valueOf(b);
                 String asBinary = Integer.toBinaryString(byte_);
@@ -64,13 +68,15 @@ public class part2_decompression {
                 asBinary = "0".repeat(8 - asBinary.length()) + asBinary;
             bitsToBeWritten.append(asBinary);
         }
+        fileBytes = null ; 
 
         for (String K : map.keySet())
             reversedMap.put(map.get(K), K);
 
+        map = new HashMap<>();
+
         ArrayList<Byte> originalBytes = new ArrayList<>();
         StringBuilder s = new StringBuilder("");
-        System.out.println("123");
         for (i = 0; i < bitsToBeWritten.length(); i++) {
             s.append(bitsToBeWritten.charAt(i));
             if (reversedMap.containsKey(s.toString())) {
@@ -84,12 +90,11 @@ public class part2_decompression {
                 s = new StringBuilder("");
             }
         }
-        System.out.println("123");
-
-        fileBytes = new byte[originalBytes.size()];
-        for (i = 0; i < originalBytes.size(); i++)
+        s = new StringBuilder("") ;
+        int actualSize = originalBytes.size() - (n - l);
+        fileBytes = new byte[actualSize];
+        for (i = 0; i < actualSize; i++)
             fileBytes[i] = originalBytes.get(i);
-
         FileOutputStream os = new FileOutputStream(filePath.substring(0, filePath.length() - 3));
         os.write(fileBytes);
         os.close();
