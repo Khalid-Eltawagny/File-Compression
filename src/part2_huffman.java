@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.PriorityQueue;
+import java.util.Queue;
 
 class Node implements Comparable<Node> {
     BitSet byte_;
@@ -27,6 +29,7 @@ class Node implements Comparable<Node> {
 
 public class part2_huffman {
 
+    private Queue<Byte> q = new LinkedList<Byte>();
     private PriorityQueue<Node> pq = new PriorityQueue<>();
     private HashMap<BitSet, Integer> cnt = new HashMap<>();
     private HashMap<BitSet, String> map = new HashMap<>();
@@ -48,68 +51,63 @@ public class part2_huffman {
         return;
     }
 
-    public HashMap<BitSet, String> RunHuffmanV2(String filePath, int n) throws IOException {
+    public HashMap<BitSet, String> RunHuffmanV2(String filePath, int n) throws IOException, InterruptedException {
         File file = new File(filePath);
         FileInputStream fis = new FileInputStream(file);
         BufferedInputStream fs = new BufferedInputStream(fis);
-
+        BitSet bs = new BitSet();
+        byte[] subB = new byte[n];
         while (fs.available() > 0) {
-            byte[] bytes = fs.readNBytes(30000);
-            int sz = (int) Math.ceil(((double) bytes.length) / n);
-            for (int i = 0, j = 0; i < sz; i++) {
+            byte[] bytes = fs.readNBytes(30000000);
+
+            for (byte B : bytes)
+                q.add(B);
+
+            if (fs.available() == 0) {
+                int lim = q.size() / n;
+                for (int i = 0; i < lim; i++) {
+                    for (int c = 0; c < n; c++)
+                        subB[c] = (byte) q.poll();
+
+                    bs = BitSet.valueOf(subB);
+                    if (!cnt.containsKey(bs))
+                        cnt.put(bs, 1);
+                    else
+                        cnt.put(bs, cnt.get(bs) + 1);
+                }
                 ArrayList<Byte> arr = new ArrayList<>();
-                for (int c = 0; c < n && j < bytes.length; j++, c++)
-                    arr.add(bytes[j]);
-                byte[] combinedBytes = new byte[arr.size()];
-                for (int l = 0; l < arr.size(); l++)
-                    combinedBytes[l] = arr.get(l);
-                BitSet b = BitSet.valueOf(combinedBytes);
-                if (!cnt.containsKey(b))
-                    cnt.put(b, 1);
+
+                while (q.size() > 0)
+                    arr.add((byte) q.poll());
+
+                byte[] tmp = new byte[arr.size()];
+                for (int i = 0; i < arr.size(); i++)
+                    tmp[i] = arr.get(i);
+                bs = BitSet.valueOf(tmp);
+
+                if (!cnt.containsKey(bs))
+                    cnt.put(bs, 1);
                 else
-                    cnt.put(b, cnt.get(b) + 1);
+                    cnt.put(bs, cnt.get(bs) + 1);
+
+            } else {
+                for (int i = 0; i < bytes.length / n; i++) {
+                    for (int c = 0; c < n; c++)
+                        subB[c] = (byte) q.poll();
+                    bs = BitSet.valueOf(subB);
+                    if (!cnt.containsKey(bs))
+                        cnt.put(bs, 1);
+                    else
+                        cnt.put(bs, cnt.get(bs) + 1);
+                }
+
             }
         }
+        subB = null ; 
+        bs = null ; 
+
         fs.close();
-        for (BitSet key : cnt.keySet()) {
-            int freq = cnt.get(key);
-            Node node = new Node(key, freq);
-            node.left = null;
-            node.right = null;
-            pq.add(node);
-        }
-        cnt = null;
-        Node root = null;
-        pq.add(new Node(null, 1));
-
-        while (pq.size() > 1) {
-
-            Node n1 = pq.poll();
-            Node n2 = pq.poll();
-
-            Node toPush = new Node(null, n1.freq + n2.freq);
-            toPush.left = n1;
-            toPush.right = n2;
-
-            root = toPush;
-
-            pq.add(toPush);
-        }
-        populatingMap(root, "");
-
-        return map;
-    }
-
-    public HashMap<BitSet, String> RunHuffman(BitSet bytes[]) {
-        // calculating frequencies .
-        for (BitSet s : bytes) {
-            if (!cnt.containsKey(s))
-                cnt.put(s, 1);
-            else
-                cnt.put(s, cnt.get(s) + 1);
-        }
-        // iterating over all bytes , create an information node for each byte and push
-        // it into pq .
+        q = null;
         for (BitSet key : cnt.keySet()) {
             int freq = cnt.get(key);
             Node node = new Node(key, freq);
@@ -135,7 +133,9 @@ public class part2_huffman {
 
             pq.add(toPush);
         }
+
         populatingMap(root, "");
+
         return map;
     }
 

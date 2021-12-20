@@ -21,7 +21,7 @@ public class part1 {
         memo.put(cur, Math.max(pick, leave));
         return Math.max(pick, leave);
     }
-
+    
     private static int findNext(int[][] jobs, int idx) {
         int l = idx + 1;
         int r = jobs.length - 1;
@@ -41,11 +41,13 @@ public class part1 {
 
     private static String generateOutputPath(String inputPath) {
         String p[] = inputPath.split("/");
+
         StringBuilder output = new StringBuilder("");
         for (int i = 0; i < p.length - 1; i++) {
             output.append(p[i]);
             output.append("/");
         }
+        
         String filename = p[p.length - 1].split("[.]")[0] + "_18010594.out";
         output.append(filename);
         return output.toString();

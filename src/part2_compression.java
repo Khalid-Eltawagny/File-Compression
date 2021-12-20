@@ -9,7 +9,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 
 public class part2_compression {
 
@@ -19,7 +21,22 @@ public class part2_compression {
     private StringBuilder bitsToBeWritten;
     private int lastLength = 0;
 
+    private String getNewPath(String inputPath) {
+        String p[] = inputPath.split("/");
+
+        StringBuilder output = new StringBuilder("");
+        for (int i = 0; i < p.length - 1; i++) {
+            output.append(p[i]);
+            output.append("/");
+        }
+
+        String filename = p[p.length - 1].split("[.]")[0] + "_18010594." + p[p.length - 1].split("[.]")[1];
+        output.append(filename);
+        return output.toString();
+    }
+
     public void compress(String filePath, int n) throws IOException, InterruptedException {
+        String Out = getNewPath(filePath);
         huffman = new part2_huffman();
         codeWord = new HashMap<>();
         bitsToBeWritten = new StringBuilder("");
@@ -28,24 +45,8 @@ public class part2_compression {
         byte[] bytesToBeWritten = null;
         FileInputStream fis = new FileInputStream(file);
         BufferedInputStream fs = new BufferedInputStream(fis);
-        byte[] fileBytes = new byte[(int) file.length()];
-        BitSet[] Nbytes = new BitSet[(int) Math.ceil(((double) fileBytes.length) / n)];
-        fs.read(fileBytes);
-        fs.close();
-        for (int i = 0, j = 0; i < Nbytes.length; i++) {
-            ArrayList<Byte> arr = new ArrayList<>();
-            for (int c = 0; c < n && j < fileBytes.length; j++, c++)
-                arr.add(fileBytes[j]);
-            if (i == Nbytes.length - 1)
-                lastLength = arr.size();
-            byte[] combinedBytes = new byte[arr.size()];
-            for (int l = 0; l < arr.size(); l++)
-                combinedBytes[l] = arr.get(l);
-            Nbytes[i] = BitSet.valueOf(combinedBytes);
-        }
-        fileBytes = null;
-        System.out.println("DONE HUFFMAN");
-        codeWord = huffman.RunHuffman(Nbytes);
+
+        codeWord = huffman.RunHuffmanV2(filePath, n);
 
         String EOF = huffman.getEOF();
 
@@ -53,31 +54,8 @@ public class part2_compression {
         for (BitSet K : codeWord.keySet())
             COPY.put(codeWord.get(K), K);
 
-        fs.close();
-
-        for (BitSet s : Nbytes)
-            bitsToBeWritten.append(codeWord.get(s));
-
-        Nbytes = null;
-        codeWord = null;
-        bytesToBeWritten = new byte[(int) (Math.ceil((double) bitsToBeWritten.length() / 8))];
-        StringBuilder _8bits;
-        for (int i = 0, j = 0; j < bytesToBeWritten.length; i += 8, j++) {
-            _8bits = new StringBuilder("");
-            _8bits.append(bitsToBeWritten.substring(i,
-                    i + 8 >= bitsToBeWritten.length() ? bitsToBeWritten.length() : i + 8));
-            while (_8bits.length() < 8)
-                _8bits.append(
-                        EOF.substring(0, 8 - _8bits.length() >= EOF.length() ? EOF.length() : 8 - _8bits.length()));
-            bytesToBeWritten[j] = (byte) (Integer.parseInt(_8bits.toString(), 2));
-        }
-
-        System.out.println("Original data size " + file.length() + " bytes.");
-        System.out.println("Compressed data size " + bytesToBeWritten.length + " bytes.");
-        System.out.println("Ratio : " + ((double) bytesToBeWritten.length / file.length()));
-
-        File ff = new File(filePath + ".hc");
-        BufferedWriter bf = new BufferedWriter(new FileWriter(ff));
+        File f = new File(Out + ".hc");
+        BufferedWriter bf = new BufferedWriter(new FileWriter(f));
         bf.write("L:" + String.valueOf(lastLength));
         bf.write(" ");
         bf.write("N:" + String.valueOf(n));
@@ -85,6 +63,7 @@ public class part2_compression {
         bf.write("EOF" + ":" + EOF);
         bf.append(" ");
         int sz = 0;
+        int len = 0;
         int mpsz = COPY.size();
         StringBuilder bytes__ = new StringBuilder("");
         for (Map.Entry<String, BitSet> E : COPY.entrySet()) {
@@ -115,17 +94,116 @@ public class part2_compression {
         }
         bf.append('\n');
         bf.close();
-        OutputStream os = new FileOutputStream(filePath + ".hc", true);
+
+        BitSet bs = new BitSet();
+        byte[] subB = new byte[n];
+        Queue<Byte> q = new LinkedList<Byte>();
+
+        while (fs.available() > 0) {
+            byte[] bytes = fs.readNBytes(30000000);
+            for (byte B : bytes)
+                q.add(B);
+            if (fs.available() == 0) {
+                int lim = q.size() / n;
+                for (int i = 0; i < lim; i++) {
+                    for (int c = 0; c < n; c++)
+                        subB[c] = (byte) q.poll();
+                    bs = BitSet.valueOf(subB);
+                    bitsToBeWritten.append(codeWord.get(bs));
+                }
+                ArrayList<Byte> arr = new ArrayList<>();
+                while (q.size() > 0)
+                    arr.add((byte) q.poll());
+                byte[] tmp = new byte[arr.size()];
+                for (int i = 0; i < arr.size(); i++)
+                    tmp[i] = arr.get(i);
+                lastLength = tmp.length;
+                bs = BitSet.valueOf(tmp);
+                bitsToBeWritten.append(codeWord.get(bs));
+            } else {
+                for (int m = 0; m < bytes.length / n; m++) {
+                    for (int c = 0; c < n; c++)
+                        subB[c] = (byte) q.poll();
+                    bs = BitSet.valueOf(subB);
+                    bitsToBeWritten.append(codeWord.get(bs));
+                    if (bitsToBeWritten.length() > 200000) {
+                        len += 25000;
+                        bytesToBeWritten = new byte[25000];
+                        String pruning = bitsToBeWritten.substring(200000);
+                        StringBuilder _8bits;
+                        for (int i = 0, j = 0; j < bytesToBeWritten.length; i += 8, j++) {
+                            _8bits = new StringBuilder("");
+                            _8bits.append(bitsToBeWritten.substring(i,
+                                    i + 8 >= bitsToBeWritten.length() ? bitsToBeWritten.length() : i + 8));
+                            while (_8bits.length() < 8)
+                                _8bits.append(
+                                        EOF.substring(0,
+                                                8 - _8bits.length() >= EOF.length() ? EOF.length()
+                                                        : 8 - _8bits.length()));
+                            bytesToBeWritten[j] = (byte) (Integer.parseInt(_8bits.toString(), 2));
+                        }
+                        bitsToBeWritten = new StringBuilder("");
+                        bitsToBeWritten.append(pruning);
+                        OutputStream os = new FileOutputStream(Out + ".hc", true);
+                        os.write(bytesToBeWritten);
+                        os.close();
+                    }
+
+                }
+
+            }
+        }
+        fs.close();
+
+        // for (BitSet s : Nbytes) {
+        // bitsToBeWritten.append(codeWord.get(s));
+        // if (bitsToBeWritten.length() > 200000) {
+        // len += 25000;
+        // bytesToBeWritten = new byte[25000];
+        // String pruning = bitsToBeWritten.substring(200000);
+        // StringBuilder _8bits;
+        // for (int i = 0, j = 0; j < bytesToBeWritten.length; i += 8, j++) {
+        // _8bits = new StringBuilder("");
+        // _8bits.append(bitsToBeWritten.substring(i,
+        // i + 8 >= bitsToBeWritten.length() ? bitsToBeWritten.length() : i + 8));
+        // while (_8bits.length() < 8)
+        // _8bits.append(
+        // EOF.substring(0,
+        // 8 - _8bits.length() >= EOF.length() ? EOF.length() : 8 -
+        // _8bits.length()));
+        // bytesToBeWritten[j] = (byte) (Integer.parseInt(_8bits.toString(), 2));
+        // }
+        // bitsToBeWritten = new StringBuilder("");
+        // bitsToBeWritten.append(pruning);
+        // OutputStream os = new FileOutputStream(filePath + ".hc", true);
+        // os.write(bytesToBeWritten);
+        // os.close();
+        // }
+        // }
+
+        codeWord = null;
+        bytesToBeWritten = new byte[(int) (Math.ceil((double) bitsToBeWritten.length() / 8))];
+        StringBuilder _8bits;
+        for (int i = 0, j = 0; j < bytesToBeWritten.length; i += 8, j++) {
+            _8bits = new StringBuilder("");
+            _8bits.append(bitsToBeWritten.substring(i,
+                    i + 8 >= bitsToBeWritten.length() ? bitsToBeWritten.length() : i + 8));
+            while (_8bits.length() < 8)
+                _8bits.append(
+                        EOF.substring(0, 8 - _8bits.length() >= EOF.length() ? EOF.length()
+                                : 8 -
+                                        _8bits.length()));
+            bytesToBeWritten[j] = (byte) (Integer.parseInt(_8bits.toString(), 2));
+        }
+        len += bytesToBeWritten.length;
+        System.out.println("N  = " + n);
+        System.out.println("Original data size " + file.length() + " bytes.");
+        System.out.println("Compressed data size " + len + " bytes.");
+        System.out.println("Ratio : " + ((double) len / file.length()));
+
+        OutputStream os = new FileOutputStream(Out + ".hc", true);
         os.write(bytesToBeWritten);
         os.close();
     }
 
-    // public HashMap<BitSet, String> getMap() {
-    // return this.codeWord;
-    // }
-
-    // public HashMap<BitSet, Integer> getFreq() {
-    // // return this.freq;
-    // return null;
-    // }
 }

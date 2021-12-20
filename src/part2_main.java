@@ -1,15 +1,15 @@
 import java.io.IOException;
 
-public class part2_main implements Runnable {
+public class part2_main {
 
-    part2_compression compression;
-    part2_decompression decompression;
+    static part2_compression compression;
+    static part2_decompression decompression;
 
-    void RUN(String op, String filePath) throws IOException, InterruptedException {
+    static void RUN(String op, String filePath, int n) throws IOException, InterruptedException {
         if (op.compareTo("c") == 0) {
             compression = new part2_compression();
             System.out.println("Compressing ... ");
-            compression.compress(filePath, 1);
+            compression.compress(filePath, n);
             System.out.println("Compressed Successfully !!");
         } else if (op.compareTo("d") == 0) {
             decompression = new part2_decompression();
@@ -19,19 +19,24 @@ public class part2_main implements Runnable {
         }
     }
 
-    public static void main(String[] args) throws IOException {
-        new Thread(null, new part2_main(), "", 1 << 120).start();
+    public static void main(String[] args) throws IOException, InterruptedException {
+        // new Thread(null, new part2_main(), "", 1 << 120).start();
+        if (args.length < 2) {
+            System.out.println("Invalid arguments");
+            return;
+        }
+
+        String op = args[0];
+        String Path = args[1];
+
+        long s = System.currentTimeMillis();
+        if (op.compareTo("c") == 0) {
+            int n = Integer.valueOf(args[2]);
+            RUN("c", Path, n);
+        } else if (op.compareTo("d") == 0) {
+            RUN("d", Path, 0);
+        }
+        System.out.println("Time taken : " + (System.currentTimeMillis() - s) / (double) 1000 + " seconds.");
     }
 
-    @Override
-    public void run() {
-        try {
-            long s = System.currentTimeMillis();
-            RUN("d", "hh.pdf.hc");
-            System.out.println("Time taken : " + (System.currentTimeMillis() - s) /
-                    (double) 1000 + " seconds.");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
 }
